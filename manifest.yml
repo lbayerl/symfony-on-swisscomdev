@@ -1,0 +1,12 @@
+applications:
+- services:
+  - ssc-db
+  - ssc-redis
+  buildpack: https://github.com/cloudfoundry/php-buildpack.git
+  host: ssc
+  name: SymfonyOnSwisscomDev
+  instances: 1
+  memory: 128M
+  env:
+    SYMFONY_ENV: prod
+    PHP_INI_SCAN_DIR: .bp-config/php/conf.d

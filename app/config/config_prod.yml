@@ -1,0 +1,26 @@
+imports:
+    - { resource: readEnvParams.php }
+    - { resource: config.yml }
+
+framework:
+    cache:
+        system: cache.adapter.apcu
+
+doctrine:
+    orm:
+        metadata_cache_driver: apcu # if you'd like to use PHP < 7.0 use 'apc' instead
+        result_cache_driver: apcu # if you'd like to use PHP < 7.0 use 'apc' instead
+        query_cache_driver: apcu # if you'd like to use PHP < 7.0 use 'apc' instead
+
+monolog:
+    handlers:
+        main_handler:
+            type:           fingers_crossed
+            action_level:   error
+            buffer_size:    200
+            handler:        stdout_handler
+            channels:       ['!event', '!doctrine']   # channels must be defined here and not in the nested handler
+        stdout_handler:         # writes to stdout, as required by Cloud Foundry in order to write to Swisscom log file
+            type:   stream
+            path:   'php://stdout'
+            level:  info
