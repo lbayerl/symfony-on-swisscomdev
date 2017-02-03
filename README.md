@@ -4,7 +4,7 @@ This article demonstrates how to deploy a standard [Symfony](http://symfony.com/
 to the [Swisscom Application Cloud](https://www.swisscom.ch/de/business/enterprise/angebot/cloud-data-center-services/paas/application-cloud.html).
 
 As the Swisscom Developer Platform is based on [Cloud Foundry](https://www.cloudfoundry.org/) it should
- mostly apply to all Cloud Foundry based platforms like IBM Bluemix and others as well. But this hasn't been tested.
+ mostly apply to all Cloud Foundry based platforms like IBM Bluemix (trademark) and others as well. But this hasn't been tested.
 
 These steps have been taken on a Kubuntu 16.04 LTS system but most of the stuff should as well easily done on any other platform.
 
@@ -14,6 +14,8 @@ In the end you will have Symfony example application which:
 3. is logging its errors to the SCAPP logs
 4. uses some caching which will boost your performance as your application grows
 
+You can find the full project in this repository - so if you have a Swisscom Application Cloud (SCAPP) account already, you can check it out and deploy it (only necessary step is first and last then).
+
 Prerequisites:
 
 1. **[composer](https://getcomposer.org/)** is installed globally
@@ -21,6 +23,20 @@ Prerequisites:
 3. **[cf cli](http://docs.cloudfoundry.org/cf-cli/)** is installed
 4. **[Swisscom Application Public Cloud](http://console.developer.swisscom.com/)** account / user is registered.
 5. of course some basic understanding about **PHP** and the **Symfony** framework.
+
+### Keep your Data: Create a Database Service
+
+No real web application is real without a database access.
+
+In this case we will create a new MariaDB service on Swisscom Application Cloud (SCAPP) by executing the following command:
+
+```sh
+cf create-service mariadb small ssc-db
+```
+
+After that we have created a MariaDB service, with a small plan (means lowest possible pricing at the time of writing) named ssc-db
+
+> You might have to replace ssc-db by the name of your choice due to potential naming conflicts - but be sure to adapt manifest.yml then.
 
 ### Get the Party started: Install Symfony Standard Framework
 
@@ -47,22 +63,9 @@ php bin/console server:run
 
 Open your browser, point it to `localhost:8000` et voila!
 
-### Keep your Data: Create a Database Service
-
-No real web application is real without a database access.
-
-In this case we will create a new MariaDB service on Swisscom Application Cloud (SCAPP) by executing the following command:
-
-```sh
-cf create-service mariadb small ssc-db
-```
-
-After that we have created a MariaDB service, with a small plan (means lowest possible pricing at the time of writing) named ssc-db
-
 ### Enable Deployment: Create a Manifest
 
 In order to deploy your application to the Swisscom Application Cloud you can create a Manifest file. There are other ways but let's keep it simple and together.
-
 
 Switch to the root dir of your application and create manifest.yml and fill it with the following content. We'll explain it in a minute.
 
@@ -76,7 +79,6 @@ applications:
   instances: 1
   memory: 256M
   env:
-    SYMFONY_ENV: prod
     PHP_INI_SCAN_DIR: .bp-config/php/conf.d
 ```
 
@@ -91,7 +93,7 @@ There will be an application deployed which
 4. name is SymfonyOnSwisscomDev
 5. will spawn one instance of the app (vertical scaling, do you hear me?)
 6. each instance will spawn with 128 MB of Ram (horizontal scaling)
-7. has two custom environment variables available: SYMFONY_ENV: prod and PHP_INI_SCAN_DIR: .bp-config/php/conf.d
+7. has one environment variables available: PHP_INI_SCAN_DIR: .bp-config/php/conf.d
 
 ### Symfony doesn't know: Adapt config_prod.yml
 
@@ -106,6 +108,7 @@ Open `app/config/config_prod.yml` and replace its content with the following con
 ```yml
 imports:
     - { resource: readEnvParams.php }
+    - { resource: parameters_prod.yml }
     - { resource: config.yml }
 
 framework:
@@ -134,27 +137,84 @@ monolog:
 
 The basic monolog configuration allows us that all logging is rollingly cached (buffer_size: 200) as long as no error happens ('fingers crossed'),
 but whenever an error happens (action_level: error) the full buffer is handled by the stdout_handler which means nothing else than writing the buffer to php://stdout - and this is automatically part of SCAPP's logging.
-Unfortunately we have to something else later on
+Unfortunately we have to do something else later on to ensure that our errors reach this stage.
 
-### Adapt config.yml, config_dev.yml and config_test.yml
+In your /app/config folder create a new file named `parameters_prod.yml` and fill it with the following content:
 
-Just as a minor step, locate the line
+```yml
+parameters:
+    mailer_transport: smtp
+    mailer_host: 127.0.0.1
+    mailer_user: null
+    mailer_password: null
+    secret: ThisTokenIsNotSoSecretChangeIt
+```
+
+### Further Config and Parameter Mangling: Symfony
+
+In file `app/config/config.yml` locate and delete the line
 
 ```yml
 - { resource: parameters.yml }
 ```
 
-in your `config.yml` and **delete** it. **Add** the following line instead:
+In file `app/config/config_dev.yml` add the following line:
 
 ```yml
-- { resource: parameters_common.yml }
+imports:
+    - { resource: parameters_dev.yml } # <--- this is the new line
+    - { resource: config.yml }
 ```
 
-But don't forget to **add** the `- { resource: parameters.yml }` line at the corresponding places in `config_dev.yml` and your `config_test.yml` otherwise your application won't start up anymore in your dev and test stage as parameters are missing.
+Do the same for your file `app/config/config_test.yml`:
 
-For our 'production stage' (which is our SCAPP) you might have noticed in our `config_prod.yml` we don't use parameters.yml anymore for that we have introduced the readEnvParams.php which we will create next.
+```yml
+imports:
+    - { resource: parameters_test.yml } # <--- this is the new line
+    - { resource: config.yml }
+```
 
-### Adapt parameters.yml, parameters.yml.dist
+Now create **two new files** named `app/config/parameters_dev.yml` and `app/config/parameters_test.yml` and fill both with the following content:
+
+```yml
+parameters:
+    database_host: 127.0.0.1
+    database_port: null
+    database_name: symfony
+    database_user: root
+    database_password: null
+    mailer_transport: smtp
+    mailer_host: 127.0.0.1
+    mailer_user: null
+    mailer_password: null
+    secret: ThisTokenIsNotSoSecretChangeIt
+```
+
+In your root folder open the file `composer.json` and delete the following lines:
+
+```json
+        "Incenteev\\ParameterHandler\\ScriptHandler::buildParameters",
+```
+
+as well as:
+
+```json
+        "incenteev-parameters": {
+            "file": "app/config/parameters.yml"
+        },
+```
+
+Finally delete the following files:
+`app/config/parameters.yml` and `app/config/parameters.yml.dist`
+
+> **CAUTION:** It's heavily recommended that you provide a valid secret parameter per stage! To do so replace 'ThisTokenIsNotSoSecretChangeIt' in your parameter_*.yml files with a real secret.
+
+> **CAUTION:** After this step you lost the convenience (provided by the [Incenteev ParameterHandler Bundle](https://github.com/Incenteev/ParameterHandler)) that composer will ask you to provide parameters
+during the 'composer install' process. You'll have to provide all required parameters per stage in the corresponding `parameter_*.yml` file (parameters_dev.yml, parameters_test.yml, parameters_prod.yml [except database]).
+
+> There are many alternatives to this approach, but we try to keep it simple here.
+
+For our 'production stage' (which is our SCAPP) you might have noticed in our `config_prod.yml` we don't use any database parameters anymore. For this we have introduced the readEnvParams.php which we will create next.
 
 ### Use the Database Credentials: Create readEnvParams.php
 
@@ -179,8 +239,6 @@ $container->setParameter('database_password', $db->password);
 This file reads the SCAPP provided **environment variable VCAP_SERVICES** and parses/sets its values as Symfony container parameter which are used via config_prod.yml.
 This allows us to connect to the Database Service.
 
-### Move
-
 ### Configure PHP: Create an options.json
 
 Create a folder ./bp-config and within that folder create a file `options.json` and fill it with the following content:
@@ -192,8 +250,6 @@ Create a folder ./bp-config and within that folder create a file `options.json` 
   "COMPOSER_INSTALL_OPTIONS": [
     "--no-dev --optimize-autoloader --no-progress --no-interaction"
   ],
-  "COMPOSER_VENDOR_DIR": "vendor",
-  "SYMFONY_ENV": "prod",
   "WEBDIR": "web",
   "PHP_MODULES": [
     "fpm",
@@ -220,14 +276,13 @@ Create a folder ./bp-config and within that folder create a file `options.json` 
 
 This will configure your PHP buildpack to
 
-1. use Apache as a Web Server
-2. run Composer during deployment with a couple of production-enabling arguments
+1. use Apache as your Web Server
+2. run Composer during deployment with a couple of production-optimized arguments
 3. install 3rd party dependencies into a folder 'vendor'
-4. run Symfony in production stage
-5. enable PHP modules for FPM and CLI
-6. use the latest PHP 7.0 version which the buildpack is offering
-7. use a couple of PHP Extensions (especially to mention here `pdo` and `pdo_mysl` to allow for database connections as well as `apcu` in order to use APCu for caching
-8. make sure that `opcache` is available
+4. enable PHP modules for FPM and CLI
+5. use the latest PHP 7.0 version which the buildpack is offering
+6. use a couple of PHP Extensions (especially to mention here `pdo` and `pdo_mysl` to allow for database connections as well as `apcu` in order to use APCu for caching
+7. make sure that `opcache` is available
 
 ### Turn on Performance - Change php.ini
 
@@ -283,7 +338,7 @@ By enabling this option, output of your application to stdout or stderr streams 
 
 And because you might want to change something in php-fpm anyway - now is your chance.
 
-### Don't push anything to production - Create a .cfignore
+### Don't push anything unnecessary to Production - Create a .cfignore
 
 Usually not every directory or file which you use in development or which is required in dev or test stage needs to be on production.
 
@@ -301,6 +356,8 @@ web/app_dev.php
 vendor
 app/config/config_dev.yml
 app/config/config_test.yml
+app/config/parameters_dev.yml
+app/config/parameters_test.yml
 app/config/routing_dev.yml
 ```
 
@@ -317,4 +374,3 @@ and follow the instructions.
 After the successful deployment you can now open https://scc.scapp.io in your browser.
 
 Bam!
-

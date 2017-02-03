@@ -6,4 +6,6 @@ web/app_dev.php
 vendor
 app/config/config_dev.yml
 app/config/config_test.yml
+app/config/parameters_dev.yml
+app/config/parameters_test.yml
 app/config/routing_dev.yml

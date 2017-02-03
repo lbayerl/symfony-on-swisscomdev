@@ -5,7 +5,6 @@
     "--no-dev --optimize-autoloader --no-progress --no-interaction"
   ],
   "COMPOSER_VENDOR_DIR": "vendor",
-  "SYMFONY_ENV": "prod",
   "WEBDIR": "web",
   "PHP_MODULES": [
     "fpm",
