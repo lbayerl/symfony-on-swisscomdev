@@ -8,9 +8,9 @@ framework:
 
 doctrine:
     orm:
-        metadata_cache_driver: apcu # if you'd like to use PHP < 7.0 use 'apc' instead
-        result_cache_driver: apcu # if you'd like to use PHP < 7.0 use 'apc' instead
-        query_cache_driver: apcu # if you'd like to use PHP < 7.0 use 'apc' instead
+        metadata_cache_driver: apcu # if you'd like to use PHP < 7.0 use 'apc' instead of 'apcu'
+        result_cache_driver: apcu # if you'd like to use PHP < 7.0 use 'apc' instead of 'apcu'
+        query_cache_driver: apcu # if you'd like to use PHP < 7.0 use 'apc' instead of 'apcu'
 
 monolog:
     handlers:

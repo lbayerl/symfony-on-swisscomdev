@@ -22,7 +22,7 @@ Prerequisites:
 4. **[Swisscom Application Public Cloud](http://console.developer.swisscom.com/)** account / user is registered.
 5. of course some basic understanding about **PHP** and the **Symfony** framework.
 
-### Install Symfony Standard Framework
+### Get the Party started: Install Symfony Standard Framework
 
 Go to a local folder and use composer to install the Symfony standard framework. ([More information](https://symfony.com/doc/current/setup.html)
 about the installation process and options)
@@ -34,7 +34,7 @@ This will install a Symfony 3.2 based standard application into the folder "symf
 
 During the installation process you'll be asked to provide some missing parameters.
 
-For now just Enter for any missing parameter to accept all default values.
+For now just hit `Enter` for any missing parameter to accept all default values.
 
 At the end of the installation process you have an example Symfony app available locally.
 
@@ -45,9 +45,9 @@ cd symfony-on-swisscomdev
 php bin/console server:run
 ```
 
-Open your browser, point it to localhost:8000 et voila!
+Open your browser, point it to `localhost:8000` et voila!
 
-### Create a Database Service
+### Keep your Data: Create a Database Service
 
 No real web application is real without a database access.
 
@@ -59,7 +59,7 @@ cf create-service mariadb small ssc-db
 
 After that we have created a MariaDB service, with a small plan (means lowest possible pricing at the time of writing) named ssc-db
 
-### Create a Manifest
+### Enable Deployment: Create a Manifest
 
 In order to deploy your application to the Swisscom Application Cloud you can create a Manifest file. There are other ways but let's keep it simple and together.
 
@@ -93,7 +93,7 @@ There will be an application deployed which
 6. each instance will spawn with 128 MB of Ram (horizontal scaling)
 7. has two custom environment variables available: SYMFONY_ENV: prod and PHP_INI_SCAN_DIR: .bp-config/php/conf.d
 
-### Adapt config_prod.yml
+### Symfony doesn't know: Adapt config_prod.yml
 
 In this step we will
 
@@ -101,7 +101,7 @@ In this step we will
 2. make sure that APC (caching) is available for Doctrine (the ORM which is bundled with Symfony) and the general Symfony system cache. This can boost the performance of your application significantly depending on your purpose.
 3. adapt the [Monolog](https://seldaek.github.io/monolog/) Logger, which is as well bundled with our Symfony standard to be able to write to the SCAPP logs.
 
-Open `app/config/config.yml` and replace its content with the following content:
+Open `app/config/config_prod.yml` and replace its content with the following content:
 
 ```yml
 imports:
@@ -114,9 +114,9 @@ framework:
 
 doctrine:
     orm:
-        metadata_cache_driver: apcu # if you'd like to use PHP < 7.0 use 'apc' instead
-        result_cache_driver: apcu # if you'd like to use PHP < 7.0 use 'apc' instead
-        query_cache_driver: apcu # if you'd like to use PHP < 7.0 use 'apc' instead
+        metadata_cache_driver: apcu # if you'd like to use PHP < 7.0 use 'apc' instead of 'apcu'
+        result_cache_driver: apcu # if you'd like to use PHP < 7.0 use 'apc' instead of 'apcu'
+        query_cache_driver: apcu # if you'd like to use PHP < 7.0 use 'apc' instead of 'apcu'
 
 monolog:
     handlers:
@@ -183,7 +183,7 @@ This allows us to connect to the Database Service.
 
 ### Configure PHP: Create an options.json
 
-Create a folder ./bg.config and within that folder create a file `options.json` and fill it with the following content:
+Create a folder ./bp-config and within that folder create a file `options.json` and fill it with the following content:
 
 ```json
 {
@@ -219,6 +219,7 @@ Create a folder ./bg.config and within that folder create a file `options.json` 
 ```
 
 This will configure your PHP buildpack to
+
 1. use Apache as a Web Server
 2. run Composer during deployment with a couple of production-enabling arguments
 3. install 3rd party dependencies into a folder 'vendor'
@@ -272,15 +273,15 @@ Go to the Github of the [Cloud Foundry Buildpack](https://github.com/cloudfoundr
 
 In your folder .bp-config/php create a file named `php-fpm.conf` and paste the content in.
 
-Now locate the following line and comment it out:
+Now locate the following line and make sure the following option is set (it's usually commented):
 
 ```ini
 catch_workers_output = yes
 ```
 
-Doing this we make sure that error messages are not filtered out / dropped.
+By enabling this option, output of your application to stdout or stderr streams is not dropped (i.e. written to /dev/null) but instead passed on to the surrounding environment. Only in this way, stdout and stderr streams reach the logging system of the Cloud Foundry framework, enabling us to log to the Swisscom log file which you can see in your Swisscom Developer Console (see [doc](https://docs.developer.swisscom.com/devguide/deploy-apps/streaming-logs.html#writing)).
 
-Because you might want to change something in php-fpm anyway - now is your chance.
+And because you might want to change something in php-fpm anyway - now is your chance.
 
 ### Don't push anything to production - Create a .cfignore
 
