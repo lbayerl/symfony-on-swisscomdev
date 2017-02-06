@@ -374,3 +374,19 @@ and follow the instructions.
 After the successful deployment you can now open https://scc.scapp.io in your browser.
 
 Bam!
+
+### Executing Commands - What to do after the deployment
+
+After the deployment it might be necessary that you execute Symfony commands via the CLI on your deployed instance
+(e.g. clearing cache, create/update data structures etc. etc.)
+
+It's a bit tricky to achieve this because the environment variables which are required are not available by default.
+
+```sh
+cf ssh SymfonyOnSwisscomDev #this will open a ssh terminal session on your SCAPP instance
+
+HOME=$HOME/app source app/.profile.d/bp_env_vars.sh #this will make your env variables available
+cd app
+bin/console doctrine:schema:create #or whatever you'd like to execute
+
+```
